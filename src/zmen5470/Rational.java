@@ -1,7 +1,6 @@
 package zmen5470;
 
 import java.util.StringTokenizer;
-import java.math.BigInteger;
 
 /**
  * Class description
@@ -52,6 +51,7 @@ public class Rational {
 	Rational(Rational that) {
 		n = that.n;
 		d = that.d;
+		normalize();
 	}
 
 	/**
@@ -121,17 +121,15 @@ public class Rational {
 		res.n = n/gdc;
 		res.d = d/gdc;
 
-		if (gdc > 1) {
-			// ensure the result is always either
-			// positive, or
-			// has a negative in the numerator
-			if ((res.n * res.d) < 0) {
-				res.n = -Math.abs(res.n);
-				res.d = Math.abs(res.d);
-			} else {
-				res.n = Math.abs(res.n);
-				res.d = Math.abs(res.d);
-			}
+		// ensure the result is always either
+		// positive, or
+		// has a negative in the numerator
+		if ((res.n * res.d) < 0) {
+			res.n = -Math.abs(res.n);
+			res.d = Math.abs(res.d);
+		} else {
+			res.n = Math.abs(res.n);
+			res.d = Math.abs(res.d);
 		}
 
 		return res;

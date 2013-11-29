@@ -33,7 +33,7 @@ public final class Controller {
 	
 
 	// Used to determine what the operator in memory is
-	private static boolean rq = true;
+	private static boolean readyForNewInput = true;
 	private static char lastOperator = '~';
 	private static char operator = '~';
 	private static boolean operatorInMemory = false;
@@ -116,27 +116,20 @@ public final class Controller {
 	 */
 	public static void arithEval(char o) {
 		
-		// Rearrange to accommodate last op
-		if(lastOperator != '~') {
-			lastOperator = '~';
-			currentValue = valueInMemory;
-		}
-		
 		// Look for an operator in memory, clear it
 		if(operatorInMemory) {
 			if(canOperate()) {
 				equals();
 				operator = o;
 				operatorInMemory = true;
-				lastOperator = '~';
-				rq = true;
+				readyForNewInput = true;
 			}
 			
 		} else {
+			valueInMemory = new Rational(currentValue);
 			 operator = o;
 			 operatorInMemory = true;
-			 valueInMemory = new Rational(currentValue);
-			 currentValue = ZERO;
+			 readyForNewInput = true;
 		}
 	}
 	
@@ -177,10 +170,6 @@ public final class Controller {
 	 */
 	public static void negate() {
 		if(!currentIsZero()) {
-			if(lastOperator != '~') {
-				currentValue = new Rational(valueInMemory);
-				valueInMemory = ZERO;
-			}
 			Rational negated = currentValue.mul(new Rational(-1));
 			currentValue = negated;
 			displayBoxString = currentValue.toString();
@@ -192,11 +181,7 @@ public final class Controller {
 	 * normalize the current value
 	 */
 	public static void normalize() {
-		currentValue = new Rational(currentValue.normalizer());
-		if(operatorInMemory || lastOperator != '~') {
-			currentValue = new Rational(valueInMemory);
-			valueInMemory = ZERO;
-		}
+		currentValue = new Rational(currentValue);
 		displayBoxString = currentValue.toString();
 		updateViews();
 	}
@@ -211,12 +196,16 @@ public final class Controller {
 			int num = Integer.parseInt(strToAppend);
 			addNumToDisplayBox(num);
 		} catch (NumberFormatException e) {
-			if (strToAppend.equals("|")) {
-				if(!displayBoxString.contains("|")) {
-					displayBoxString += strToAppend;
+			try {
+				if (strToAppend.equals("|")) {
+					if(!displayBoxString.contains("|") && !currentIsZero() && !readyForNewInput) {
+						displayBoxString += strToAppend;
+					}
+				} else {
+					throw new Exception();
 				}
-			} else {
-				// invalid string, will throw error
+			} catch (Exception ex) {
+				showError("Invalid string appended");
 			}
 		}
 		updateViews();
@@ -229,11 +218,14 @@ public final class Controller {
 	 * @return new value of the display box
 	 */
 	public static String addToDisplayBox(int intToAppend) {
+
+		System.out.println("addToDisplayBox");
 		
-		if (currentIsZero() || operatorInMemory || rq) {
+		if (readyForNewInput || currentIsZero()) {
 			displayBoxString = Integer.toString(intToAppend);
+			valueInMemory = new Rational(currentValue);
 			currentValue = new Rational(intToAppend);
-			rq = false;
+			readyForNewInput = false;
 		} else {
 			addNumToDisplayBox(intToAppend);
 			currentValue = new Rational(displayBoxString);
@@ -259,29 +251,43 @@ public final class Controller {
 		try {
 			Rational result = null;
 			char op = (operatorInMemory) ? operator : lastOperator;
-			
+			Rational val = new Rational( (operatorInMemory) ? valueInMemory : valueFromLastOperation );
+
 			switch(op) {
 			case '+':
-				result = valueInMemory.add(currentValue);
+				result = val.add(currentValue);
 				break;
 			case '-':
-				result = valueInMemory.sub(currentValue);
+				result = val.sub(currentValue);
 				break;
 			case '*':
-				result = valueInMemory.mul(currentValue);
+				result = val.mul(currentValue);
 				break;
 			case '/':
-				result = valueInMemory.div(currentValue);
+				if (currentIsZero() && !val.equals(ZERO)) {
+					throw new IllegalArgumentException("Argument 'divisor' is 0");
+				}
+				result = val.div(currentValue);
 				break;
 			}
+
+			if (operatorInMemory) {
+				valueFromLastOperation = new Rational(currentValue);
+			}
+			currentValue = new Rational(result);
+
+			valueInMemory = ZERO;
+			displayBoxString = currentValue.toString();
+			readyForNewInput = true;
 			
-			valueInMemory = result;
-			displayBoxString = result.toString();
-			
-			operator = '~';
-			operatorInMemory = false;
+			if(operatorInMemory) {
+				operator = '~';
+				operatorInMemory = false;
+			}
 			lastOperator = op;
 			
+		} catch (IllegalArgumentException ex) {
+			showError("Cannot divide by 0");
 		} catch (Exception ex){
 			showError("An unknown error has occured: " + ex.toString());
 		}
